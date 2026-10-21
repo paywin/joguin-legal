@@ -18,7 +18,7 @@ void main() {
     vec3 meta=texture(info,uv).rgb;
     int material=int(round(meta.x*8.));
     // Brightness, material microtexture and depth influence density together.
-    float density=clamp(sqrt(max(L,0.))*1.10+(meta.z-.5)*.10*(1.-meta.y),0.,.999);
+    float density=clamp(sqrt(max(L,0.))*1.10+(meta.z-.5)*.025*(1.-meta.y),0.,.999);
     const int ramp[10]=int[10](0,2,3,7,9,8,10,11,12,12);
     int glyph=ramp[int(density*10.)];
     if(contrast>.22) {
@@ -28,7 +28,7 @@ void main() {
     } else if(material==3 && density>.30) {
         glyph=meta.z>.53?18:17;
     } else if(material==2 && density>.40 && meta.z>.55) glyph=7;
-    else if(material==4 && contrast>.018) glyph=15;
+
     // A conservative hysteresis prevents static cells flickering at thresholds.
     // Do not retain stale symbols across material or strong edge transitions.
     vec4 old=texture(previous,uv);

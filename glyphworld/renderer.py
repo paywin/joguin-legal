@@ -63,7 +63,7 @@ class Renderer:
                           self.grid[0]*self.grid[1]*16 + self.atlas.size[0]*self.atlas.size[1] + MAX_BOXES*48)
 
     def density(self, direction):
-        presets = [(4, 6), (5, 7), (6, 9), (8, 12), (10, 15)]
+        presets = [(3, 5), (4, 6), (5, 7), (6, 9), (8, 12), (10, 15)]
         index = min(range(len(presets)), key=lambda i: abs(presets[i][0]-self.cell[0]))
         self.cell = presets[min(len(presets)-1, max(0, index+direction))]
         self.resize(*self.size)
@@ -75,6 +75,7 @@ class Renderer:
         self.scene_fbo.use()
         self.ctx.viewport = (0, 0, *self.scene.size)
         self.uniforms("scene", resolution=self.size, time=atmosphere.time,
+                      **camera.pose(character, city), first_person=camera.first_person,
                       geometry=4, box_count=count, camera_position=(camera.x,camera.z),
                       player_position=(character.x,character.z), zoom=camera.zoom,
                       daylight=atmosphere.daylight, interior=city.interior is not None,

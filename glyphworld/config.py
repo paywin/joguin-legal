@@ -9,8 +9,8 @@ ROOT = Path(__file__).resolve().parent.parent
 class Config:
     width: int = 1280
     height: int = 720
-    cell_width: int = 5
-    cell_height: int = 7
+    cell_width: int = 3
+    cell_height: int = 5
     vsync: bool = True
     seed: int = 42
     rain: bool = False

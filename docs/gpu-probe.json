@@ -7,19 +7,19 @@
     720
   ],
   "grid": [
-    256,
-    103
+    427,
+    144
   ],
   "sample_frames": 80,
   "warmup_frames": 10,
-  "mean_ms": 6.762536249516415,
-  "p95_ms": 7.9973099993367205,
-  "fps": 147.87351418212498,
-  "animated_pixel_fraction": 0.021538990162037037,
+  "mean_ms": 14.162478751495655,
+  "p95_ms": 15.917339999577962,
+  "fps": 70.60910858520393,
+  "animated_pixel_fraction": 0.029462528935185184,
   "diagnostic_views_rendered": 4,
   "rain_and_light_off_rendered": true,
   "night_and_interior_rendered": true,
-  "city_boxes": 376,
+  "city_boxes": 484,
   "paused_frames_identical": true,
   "field_indices_finite_and_in_range": true
 }

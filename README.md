@@ -1,4 +1,4 @@
-# GlyphWorld 0.3 — Tokyo / Hikari District
+# GlyphWorld 0.4 — Tokyo / Hikari District
 
 Cidade tecnológica explorável, inspirada em Tóquio, inteiramente renderizada por
 um campo dinâmico de caracteres. Agora há movimento em duas direções no plano,
@@ -9,6 +9,8 @@ As referências visuais fornecidas orientaram densidade urbana e verticalidade;
 as imagens não são usadas como texturas nem redistribuídas no jogo.
 
 ![Cidade durante o dia, captura real dos shaders](docs/preview.png)
+
+![Primeira pessoa](docs/preview-first-person.png)
 
 ![Cidade à noite, captura real dos shaders](docs/preview-night.png)
 
@@ -52,17 +54,20 @@ e pressione E para sair exatamente pela mesma porta.
 | F1 | Mostrar/ocultar métricas no título |
 | F2 | Final / luminosidade / orientação / profundidade / material |
 | F12 | Salvar captura em `captures/` |
-| Esc | Sair |
+| Clique / mouse | Capturar mouse / olhar ao redor |
+| V | Primeira / terceira pessoa |
+| Esc | Liberar mouse; depois sair |
 
-W/S seguem um eixo da cidade; A/D seguem o outro. A projeção oblíqua faz esses
-eixos aparecerem inclinados na tela. Movimento diagonal é normalizado para não
-ficar mais rápido. A pausa mudou de Espaço para **P**.
+Clique na janela para controlar a câmera pelo mouse. **V** alterna terceira e
+primeira pessoa. WASD segue a orientação horizontal da câmera; o movimento
+na diagonal mantém a mesma velocidade. Esc libera o mouse; pressione novamente
+para sair. A roda ajusta a distância em terceira pessoa.
 
 ## O que mudou desde 0.2
 
-- Campo mais legível: células padrão de 5×7, atlas com traços mais espessos,
+- Campo mais legível: células padrão de 3×5, atlas com traços mais espessos,
   menos troca por símbolos finos em detalhes internos e exposição ajustável.
-- Cena 3D em projeção oblíqua: volume real dos edifícios, telhados, unidades de
+- Cena 3D em perspectiva na altura da rua: volume real dos edifícios, telhados, unidades de
   serviço, janelas, pavimentos, vitrines, marquises, letreiros, árvores e postes.
 - Paleta contida: concreto claro, vidro azul-acinzentado, ciano e âmbar.
 - Noite com iluminação ambiente mínima; portas, ruas e personagem permanecem visíveis.
@@ -73,7 +78,9 @@ ficar mais rápido. A pausa mudou de Espaço para **P**.
 - 18 pedestres próximos em rotas pelas calçadas e 18 veículos em rotas de avenida.
 - Ciclo completo de 24 horas em oito minutos, configurável. Janelas e letreiros
   ganham presença à noite. Sombras direcionais simples das construções durante o dia.
-- Recorte local de fachada quando ela esconde o personagem, para preservar navegação.
+- Câmera em terceira pessoa com braço que encurta perto das paredes; primeira pessoa na altura dos olhos.
+- Fachadas com letreiros verticais e painéis comerciais, sem redistribuir imagens de referência.
+- Menos ruído de material e iluminação ambiente mais clara.
 
 ## Configuração
 
@@ -95,7 +102,7 @@ continua dependendo de medição na aplicação e no computador usado.
 ## Renderização
 
 1. Python gera uma vizinhança de 3×3 quarteirões, personagens e veículos. Uma
-   textura RGBA32F contém até 512 caixas; a cena atual usa 376 no exterior.
+   textura RGBA32F contém até 512 caixas; a cena atual usa 484 no exterior.
    O cache procedural é limitado a 64 quarteirões. Não há um objeto Python por glifo.
 2. `scene.frag` intersecta os raios da câmera com essa geometria, aplica detalhes
    procedurais por material e produz cor e metadados em buffers intermediários.
@@ -107,7 +114,7 @@ continua dependendo de medição na aplicação e no computador usado.
 
 O atlas é compartilhado e gerado a partir de uma fonte monoespaçada local. A cena
 usa três draw calls por quadro; a complexidade de interseção aumenta com a geometria,
-mesmo mantendo o número de chamadas fixo. A grade padrão tem 256×103 = 26.368 células.
+mesmo mantendo o número de chamadas fixo. A grade padrão tem 427×144 = 61.488 células.
 
 ## Testes e estado de validação
 
@@ -116,7 +123,7 @@ python -m unittest discover -s tests -v
 python -m glyphworld --hidden --frames 120 --capture captures/smoke.png --benchmark benchmark-smoke.json
 ```
 
-**20 testes de lógica passaram.** Os três shaders compilaram e executaram na GPU
+**25 testes de lógica passaram.** Os três shaders compilaram e executaram na GPU
 Intel UHD Graphics em um harness nativo, incluindo dia, noite, interior, animação,
 tempo congelado e mapas de diagnóstico. As imagens deste README são capturas reais.
 
@@ -131,7 +138,7 @@ No Windows, o harness opcional usa NumPy, Pillow e o OpenGL do sistema:
 python tools/render_probe_windows.py
 ```
 
-Ele atualiza as três imagens e `docs/gpu-probe.json`. A aplicação principal continua
+Ele atualiza as quatro imagens e `docs/gpu-probe.json`. A aplicação principal continua
 multiplataforma: ModernGL/GLFW, sem importar esse harness específico do Windows.
 
 Linux está preparado, mas ainda não foi testado:
@@ -157,7 +164,7 @@ físico no eixo vertical, com colisão lateral mantida, sem plataformas elevadas
 A geração ainda usa uma malha regular, com variação de altura, largura, material e
 tipo de interior. Prédios são compostos por caixas detalhadas proceduralmente.
 A vizinhança se renova ao cruzar quarteirões; objetos muito distantes podem aparecer
-ou desaparecer. O recorte de fachada é uma ajuda de câmera, não destruição do prédio.
+ou desaparecer. A câmera testa paredes e móveis; pequenos adereços podem atravessar a câmera.
 
 Próximos passos: validar a janela completa, enriquecer os layouts e fachadas,
 introduzir rotas de trânsito persistentes, colisões entre agentes, interiores

@@ -134,6 +134,12 @@ def city_geometry(city, character, time):
             pack_box(rows,(b.x+b.hx-.48,3.8,b.z-b.hz-.17),(.35,1.45,.15),
                      (.22,.76,.79) if b.style%2 else (1.,.59,.22),SIGN,b.style)
             pack_box(rows,(b.x,2.45,b.z-b.hz-.5),(2.2,.12,.6),(.27,.56,.55),METAL)
+            # Street-facing illuminated panels: restrained ivory, vermilion and indigo.
+            side=-1 if b.key[2]%2==0 else 1
+            sign_colors=((.92,.30,.16),(.18,.38,.72),(.92,.67,.20),(.22,.62,.55))
+            pack_box(rows,(b.x+side*(b.hx+.13),4.5,b.z-1.9),(.12,2.0,.48),sign_colors[b.style],SIGN,3)
+            pack_box(rows,(b.x+side*(b.hx+.10),min(8.,b.height-1.3),b.z),(.09,.95,2.3),sign_colors[(b.style+1)%4],SIGN,4)
+            pack_box(rows,(b.x+side*(b.hx+.35),2.5,b.z),(.48,.12,2.8),(.84,.79,.66),METAL)
             if b.key[2]==0:
                 pack_box(rows,(b.x-b.hx-.6,.75,b.z),(.32,.75,.32),(.76,.83,.80),METAL,2)
                 pack_box(rows,(b.x-b.hx-1.,2.2,b.z+2.5),(.11,2.2,.11),(.29,.36,.37),METAL)

@@ -7,7 +7,7 @@ from .config import load_config, ROOT
 
 
 def main():
-    parser = argparse.ArgumentParser(description="GlyphWorld 0.3 — Tokyo / Hikari District")
+    parser = argparse.ArgumentParser(description="GlyphWorld 0.4 — Tokyo / Hikari District")
     parser.add_argument("--config", type=Path, default=ROOT / "config.toml")
     parser.add_argument("--frames", type=int, default=0, help="Exit after N frames; 0 runs until closed")
     parser.add_argument("--benchmark", type=Path, help="Write measured frame times and hardware metadata")
@@ -55,13 +55,22 @@ def main():
         atmosphere = Atmosphere(config.rain, config.lighting, hour=config.start_hour if args.hour is None else args.hour,
                                 day_seconds=config.day_seconds)
         metrics = Metrics()
+        mouse = {"captured": False, "last": None}
         state = {"paused": False, "metrics": True, "capture": False, "jump": False}
 
         def on_key(win, key, scancode, action, mods):
             if action != glfw.PRESS:
                 return
             if key == glfw.KEY_ESCAPE:
-                glfw.set_window_should_close(win, True)
+                if mouse["captured"]:
+                    mouse["captured"]=False
+                    mouse["last"]=None
+                    glfw.set_input_mode(win, glfw.CURSOR, glfw.CURSOR_NORMAL)
+                else:
+                    glfw.set_window_should_close(win, True)
+            elif key == glfw.KEY_V:
+                camera.first_person = not camera.first_person
+                renderer.history_valid = False
             elif key == glfw.KEY_P:
                 state["paused"] = not state["paused"]
             elif key == glfw.KEY_SPACE and not state["paused"]:
@@ -102,9 +111,25 @@ def main():
             elif key == glfw.KEY_F12:
                 state["capture"] = True
 
+        def on_mouse(win, button, action, mods):
+            if button == glfw.MOUSE_BUTTON_LEFT and action == glfw.PRESS:
+                mouse["captured"]=True
+                mouse["last"]=None
+                glfw.set_input_mode(win, glfw.CURSOR, glfw.CURSOR_DISABLED)
+
+        def on_cursor(win, x, y):
+            if not mouse["captured"]: return
+            if mouse["last"] is not None:
+                camera.look(x-mouse["last"][0], y-mouse["last"][1])
+                renderer.history_valid=False
+            mouse["last"]=(x,y)
+
+        glfw.set_mouse_button_callback(window, on_mouse)
+        glfw.set_cursor_pos_callback(window, on_cursor)
         glfw.set_key_callback(window, on_key)
         glfw.set_scroll_callback(window, lambda win, x, y: camera.zoom_by(1.1**y))
         print("OpenGL:", ctx.info.get("GL_RENDERER"), ctx.info.get("GL_VERSION"))
+        print("Click: mouse look | V: first/third person | Esc: release mouse/quit")
         print("WASD move | Space jump | E enter/exit | P pause | Tab auto | N +6h | T clock | PgUp/PgDn brightness")
         print("[ ] density | R rain | L light | F1 metrics | F2 maps | +/- zoom | F12 capture")
         previous = time.perf_counter()
@@ -123,7 +148,7 @@ def main():
             if not state["paused"]:
                 direction = (float(glfw.get_key(window, glfw.KEY_D)==glfw.PRESS)-float(glfw.get_key(window, glfw.KEY_A)==glfw.PRESS),
                              float(glfw.get_key(window, glfw.KEY_W)==glfw.PRESS)-float(glfw.get_key(window, glfw.KEY_S)==glfw.PRESS))
-                character.update(dt, city, direction, state["jump"])
+                character.update(dt, city, camera.movement(*direction), state["jump"])
                 state["jump"] = False
                 camera.update((character.x, character.z), dt)
                 atmosphere.update(dt)
@@ -142,7 +167,7 @@ def main():
                 s = metrics.summary()
                 near = city.nearest_door(character.x, character.z)
                 prompt = " | E: ENTER" if near else " | E: EXIT near cyan mat" if city.interior else ""
-                title = f"GlyphWorld 0.3 | {city.location} | {atmosphere.clock} | {'AUTO' if character.automatic else 'WASD + SPACE'}{prompt}"
+                title = f"GlyphWorld 0.4 | {city.location} | {atmosphere.clock} | {'AUTO' if character.automatic else 'WASD + SPACE'}{prompt}"
                 if state["metrics"]:
                     title += (f" | {s['fps']:.1f} FPS / {s['frame_ms']:.2f} ms"
                               f" | {renderer.grid[0]*renderer.grid[1]:,} glyphs"

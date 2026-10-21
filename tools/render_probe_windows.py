@@ -6,6 +6,7 @@ from PIL import Image
 sys.path.insert(0,str(root))
 from glyphworld.atlas import build_atlas, GLYPHS
 from glyphworld.scene import City, city_geometry, MAX_BOXES
+from glyphworld.camera import Camera
 from glyphworld.character import Character
 from glyphworld.lighting import Atmosphere
 
@@ -53,7 +54,7 @@ def uniforms(name,**values):
 def bind(unit,t): active(0x84C0+unit); bind_tex(0x0DE1,t)
 
 W,H=1280,720
-GW,GH=256,103
+GW,GH=427,144
 scene=texture(GW*2,GH*2); info=texture(GW*2,GH*2); sf=fbo([scene,info])
 fields=[texture(GW,GH),texture(GW,GH)]; ff=[fbo([t]) for t in fields]
 out=texture(W,H); of=fbo([out])
@@ -62,6 +63,7 @@ tex_param(0x0DE1,0x2801,0x2601); tex_param(0x0DE1,0x2800,0x2601)
 geometry=texture(3,MAX_BOXES)
 city=City(42)
 character=Character()
+camera=Camera()
 for f in ff:
     bind_fbo(0x8D40,f); gl.glClear(0x4000)
 
@@ -70,7 +72,8 @@ def render(t,index,history=True,rain=False,light=True,debug=0,hour=9.):
     bind(4,geometry)
     tex_image(0x0DE1,0,0x8814,3,MAX_BOXES,0,0x1908,0x1406,boxes.ctypes.data)
     bind_fbo(0x8D40,sf); viewport(0,0,GW*2,GH*2)
-    uniforms('scene',resolution=(W,H),time=t,camera_position=(character.x,character.z),zoom=1.,
+    camera.snap(character)
+    uniforms('scene',**camera.pose(character,city),first_person=camera.first_person,resolution=(W,H),time=t,camera_position=(character.x,character.z),zoom=1.,
              player_position=(character.x,character.z),geometry=4,box_count=count,
              daylight=Atmosphere(hour=hour).daylight,interior=city.interior is not None,rain=rain,lighting=light)
     draw(4,0,3)
@@ -119,6 +122,9 @@ render(1.5,0,False,rain=False,light=False)
 capture(capture_dir/'probe-dry.png')
 render(4.,1,False,hour=23.)
 capture(outdir/'preview-night.png')
+camera.first_person=True
+render(4.,0,False)
+capture(outdir/'preview-first-person.png')
 door=city.nearby(character.x,character.z,0)[0]
 character.x,character.z=door.door
 assert city.interact(character)

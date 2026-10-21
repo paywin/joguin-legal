@@ -6,6 +6,8 @@ uniform sampler2D geometry;
 uniform int box_count;
 uniform vec2 resolution;
 uniform vec2 camera_position;
+uniform vec3 camera_origin, camera_forward, camera_right, camera_up;
+uniform bool first_person;
 uniform vec2 player_position;
 uniform float zoom;
 uniform float time;
@@ -40,14 +42,11 @@ float letters(vec2 p){
 }
 
 void main(){
-    vec3 direction=normalize(vec3(.32,-.72,.62));
-    vec3 right=normalize(cross(vec3(0,1,0),direction));
-    vec3 up=cross(direction,right);
-    vec2 screen=(uv-.5)*vec2(resolution.x/resolution.y,1.)*(interior?15.:32.)/zoom;
-    vec3 target=vec3(camera_position.x,2.,camera_position.y);
-    vec3 origin=target-direction*80.+right*screen.x+up*screen.y;
-    vec3 inv=1./direction;
-    float distanceHit=-origin.y/direction.y;
+    vec2 screen=(uv-.5)*vec2(resolution.x/resolution.y,1.);
+    vec3 origin=camera_origin;
+    vec3 direction=normalize(camera_forward+(camera_right*screen.x+camera_up*screen.y)*1.18);
+    vec3 inv=1./(direction+vec3(0.000001));
+    float distanceHit=direction.y<-.0001 ? min(120.,-origin.y/direction.y) : 120.;
     vec3 normal=vec3(0,1,0);
     int hit=-1;
     // Fixed upper bound, actual scene count supplied by CPU; no per-glyph Python objects.
@@ -56,13 +55,13 @@ void main(){
         vec4 low=row(i,0),high=row(i,1);
         vec3 n;
         float d=intersectBox(origin,inv,low.xyz,high.xyz,n);
-        // Small cutaway around the player when a tall facade obscures navigation.
-        vec3 foot=vec3(player_position.x,.8,player_position.y);
-        vec3 toward=foot-origin;
-        float playerRay=dot(toward,direction);
-        float offRay=length(toward-direction*playerRay);
-        if(!interior && int(low.w)==1 && d<playerRay-1. && offRay<1.7) continue;
+        if(first_person && i>=box_count-7)continue;
         if(d<distanceHit){distanceHit=d;normal=n;hit=i;}
+    }
+    if(hit<0 && (direction.y>=-.0001 || distanceHit>=119.9)){
+        vec3 sky=mix(vec3(.62,.76,.86),vec3(.30,.57,.80),smoothstep(0.,.65,direction.y));
+        sky=mix(vec3(.16,.23,.34),sky,daylight);
+        scene_color=vec4(sky,1.);scene_info=vec4(0.,1.,.5,1.);return;
     }
     vec3 p=origin+direction*distanceHit;
     vec3 col;
@@ -92,7 +91,7 @@ void main(){
             if(abs(p.x)<1.1&&p.z< -3.8&&p.z> -4.5){col=vec3(.34,.83,.78);emission=.5;}
         }
         float ring=abs(length(p.xz-player_position)-.64);
-        if(ring<.07){col=vec3(.38,.93,.94);emission=.7;}
+        if(!first_person && ring<.04){col=vec3(.38,.93,.94);emission=.7;}
         if(!interior && lighting && daylight>.05){
             vec3 lightRay=normalize(vec3(-.5,.85,-.3));
             for(int i=0;i<512;++i){
@@ -113,7 +112,7 @@ void main(){
             vec2 face=vec2(horizontal,p.y);
             vec2 cells=fract(face/vec2(1.25,2.5));
             if(normal.y<.5){
-                col*=.82+.18*hash(floor(face*5.));
+                col*=.97+.03*hash(floor(face));
                 if(cells.y<.075)col*=.62;
                 bool window=cells.x>.13&&cells.x<.86&&cells.y>.25&&cells.y<.86;
                 if(window&&p.y>2.6){
@@ -125,11 +124,12 @@ void main(){
                 }
                 if(p.y<2.35){
                     col=vec3(.20,.31,.34);
-                    float mid=extent.x*.5;
-                    if(normal.z<-.5){
-                        if(abs(local.x-mid)<.65){
+                    float span=abs(normal.x)>.5?extent.z:extent.x;
+                    float mid=span*.5;
+                    if(normal.z<-.5 || abs(normal.x)>.5){
+                        if(abs(horizontal-mid)<.65){
                             col=vec3(.41,.79,.78);emission=.22;
-                            if(abs(local.x-mid)<.035)col*=.35;
+                            if(abs(horizontal-mid)<.035)col*=.35;
                             if(p.y>1.15&&p.y<1.25)col=vec3(1.,.86,.5);
                         }else{
                             col=mix(vec3(.25,.38,.41),vec3(.72,.66,.45),.35);
@@ -166,8 +166,16 @@ void main(){
                 col=mix(col,vec3(1.,.88,.59),.55);emission=.35;
             }
         }else if(int(mat)==7){
-            float strokes=step(.48,fract((p.y+floor(p.y*2.)*.17)*4.))*step(.2,fract((p.x+p.z)*5.));
-            col=mix(col*.65,vec3(.93,.98,.88),strokes);emission=.8;
+            float horizontal=abs(normal.x)>.5?local.z:local.x;
+            float span=abs(normal.x)>.5?extent.z:extent.x;
+            float strokes=letters(vec2(horizontal/span,local.y/extent.y));
+            if(hi.w==3.){
+                vec2 q=fract(vec2(horizontal/span,local.y/.65));
+                strokes=float((abs(q.x-.5)<.065 && q.y>.15 && q.y<.85) ||
+                              (abs(q.y-.5)<.07 && q.x>.18 && q.x<.82) ||
+                              (abs(q.x-.25)<.05 && q.y>.3 && q.y<.7));
+            }
+            col=mix(col,vec3(.98,.96,.83),strokes);emission=.45;
         }else if(int(mat)==8){
             col*=.85+.15*sin(p.x*8.+p.z*14.);
         }
@@ -175,14 +183,14 @@ void main(){
     vec3 sun=normalize(vec3(-.5,.85,-.3));
     float diffuse=max(0.,dot(normal,sun));
     // Readable night floor: darkness never erases streets and entrances.
-    float ambient=mix(.43,.80,daylight);
+    float ambient=mix(.68,.95,daylight);
     if(interior)ambient=.92;
     if(lighting)col*=ambient+diffuse*daylight*.35;
     col+=col*emission*(1.1-daylight*.5);
     if(!interior){
         float streetlight=exp(-pow(mod(p.x+13.,26.)-13.,2.)*.035);
         col+=vec3(.12,.19,.22)*streetlight*(1.-daylight);
-        float haze=clamp(distance(p.xz,camera_position)/85.,0.,.27);
+        float haze=smoothstep(22.,65.,distance(p.xz,camera_position))*.85;
         col=mix(col,mix(vec3(.13,.23,.31),vec3(.63,.76,.78),daylight),haze);
         if(rain){
             vec2 raincell=vec2(uv.x*220.+uv.y*25.,uv.y*75.+time*25.);
