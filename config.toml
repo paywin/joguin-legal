@@ -1,0 +1,18 @@
+[display]
+width = 1280
+height = 720
+cell_width = 6
+cell_height = 9
+vsync = true
+
+[world]
+seed = 42
+rain = true
+lighting = true
+zoom = 1.0
+
+[render]
+exposure = 1.7
+temporal_threshold = 0.045
+# Optional path to a monospace .ttf; empty uses system font discovery.
+font = ""

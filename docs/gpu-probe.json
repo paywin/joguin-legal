@@ -1,0 +1,23 @@
+{
+  "renderer": "Intel(R) UHD Graphics",
+  "opengl": "4.6.0 - Build 32.0.101.5972",
+  "harness": "ctypes WGL, hidden window + offscreen FBO; NOT ModernGL/GLFW application",
+  "resolution": [
+    1280,
+    720
+  ],
+  "grid": [
+    214,
+    80
+  ],
+  "sample_frames": 80,
+  "warmup_frames": 10,
+  "mean_ms": 0.947085000370862,
+  "p95_ms": 1.771675000054529,
+  "fps": 1055.8714366803586,
+  "animated_pixel_fraction": 0.29971824363425925,
+  "diagnostic_views_rendered": 4,
+  "rain_and_light_off_rendered": true,
+  "paused_frames_identical": true,
+  "field_indices_finite_and_in_range": true
+}
