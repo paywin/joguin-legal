@@ -1,25 +1,25 @@
-# GlyphWorld 0.2 — The Forgotten City
+# GlyphWorld 0.3 — Tokyo / Hikari District
 
-Protótipo gráfico de um mundo industrial formado por um campo dinâmico de caracteres.
-Python 3.11+, ModernGL, GLFW, NumPy e Pillow. Não há IA nesta versão.
+Cidade tecnológica explorável, inspirada em Tóquio, inteiramente renderizada por
+um campo dinâmico de caracteres. Agora há movimento em duas direções no plano,
+becos, portas, interiores, pedestres, carros e ciclo de dia/noite.
 
-![Captura real dos shaders em GPU Intel UHD](docs/preview.png)
+É uma **interpretação original e estilizada**, não um mapa geográfico de Tóquio.
+As referências visuais fornecidas orientaram densidade urbana e verticalidade;
+as imagens não são usadas como texturas nem redistribuídas no jogo.
 
-**Estado:** implementação entregue; testes de lógica e renderização dos shaders na GPU
-executados. A aplicação completa ModernGL/GLFW ainda precisa de validação integrada:
-o ambiente de desenvolvimento bloqueou a instalação dessas dependências. A captura
-acima foi produzida pelos shaders reais em um harness OpenGL, não por imagem gerada.
-Veja [o relatório de validação](docs/VALIDATION.md) antes de interpretar desempenho.
+![Cidade durante o dia, captura real dos shaders](docs/preview.png)
+
+![Cidade à noite, captura real dos shaders](docs/preview-night.png)
+
+![Interior acessível, captura real dos shaders](docs/preview-interior.png)
 
 ## Executar no Windows
 
-1. Instale Python **3.11 ou superior** (64 bits), com o launcher `py` ou Python no PATH.
-2. Baixe este repositório em **Code → Download ZIP** e extraia, ou use Git.
-3. Dê dois cliques em **`start_windows.bat`**. Na primeira vez é necessária internet
-   para criar o ambiente virtual e instalar as dependências.
-4. A janela inicia em 1280 × 720; o personagem caminha automaticamente.
-
-Instalação manual no PowerShell, dentro da pasta do projeto:
+Instale Python **3.11+ (64 bits)**. Baixe este repositório em **Code → Download ZIP**,
+extraia e abra **`start_windows.bat`**. A primeira instalação precisa de internet.
+Se você já tem a versão 0.2, atualize os arquivos do projeto; a lista de dependências
+continua compatível. Instalação manual, na pasta do projeto:
 
 ```powershell
 py -3 -m venv .venv
@@ -27,12 +27,114 @@ py -3 -m venv .venv
 .\.venv\Scripts\python.exe -m glyphworld
 ```
 
-Não é necessário ativar o ambiente virtual. Uma fonte monoespaçada do sistema é
-usada para gerar o atlas; nenhuma fonte ou recurso de Rain World é distribuído.
-Se a fonte não for localizada, configure `render.font` em `config.toml` com uma fonte
-TTF monoespaçada. Caminhos relativos são resolvidos a partir da pasta de execução.
+O jogo começa às **09:00**, em modo manual, perto de uma avenida. O personagem usa
+casaco ciano, cachecol âmbar e um círculo ciano no chão. Caminhe pelas ruas,
+entre os prédios e até uma porta ciano na fachada. O título mostra **E: ENTER**
+quando você está próximo o suficiente. Dentro do edifício, volte ao tapete ciano
+e pressione E para sair exatamente pela mesma porta.
 
-Linux (arquitetura preparada, ainda não validado):
+## Controles
+
+| Controle | Ação |
+|---|---|
+| W / A / S / D | Caminhar pelo plano da cidade, com colisão nas construções |
+| Espaço | Pular; não atravessa paredes nem sobe nos telhados |
+| E | Entrar na porta próxima / sair próximo ao tapete ciano |
+| Tab | Alternar controle manual e caminhada demonstrativa |
+| P | Pausar personagem, trânsito, pedestres, chuva e relógio |
+| N | Avançar seis horas |
+| T | Congelar/retomar apenas o ciclo de dia/noite |
+| Page Up / Page Down | Aumentar/diminuir exposição |
+| `[` / `]` | Mais/menos densidade de caracteres |
+| `+` / `-` ou roda do mouse | Aproximar/afastar câmera |
+| R | Ligar/desligar chuva |
+| L | Alternar iluminação e sombras |
+| F1 | Mostrar/ocultar métricas no título |
+| F2 | Final / luminosidade / orientação / profundidade / material |
+| F12 | Salvar captura em `captures/` |
+| Esc | Sair |
+
+W/S seguem um eixo da cidade; A/D seguem o outro. A projeção oblíqua faz esses
+eixos aparecerem inclinados na tela. Movimento diagonal é normalizado para não
+ficar mais rápido. A pausa mudou de Espaço para **P**.
+
+## O que mudou desde 0.2
+
+- Campo mais legível: células padrão de 5×7, atlas com traços mais espessos,
+  menos troca por símbolos finos em detalhes internos e exposição ajustável.
+- Cena 3D em projeção oblíqua: volume real dos edifícios, telhados, unidades de
+  serviço, janelas, pavimentos, vitrines, marquises, letreiros, árvores e postes.
+- Paleta contida: concreto claro, vidro azul-acinzentado, ciano e âmbar.
+- Noite com iluminação ambiente mínima; portas, ruas e personagem permanecem visíveis.
+- Quarteirões gerados por coordenadas e seed, com avenidas e becos conectados.
+- Colisões de jogador usam os mesmos limites dos edifícios desenhados.
+- Interiores de loja e apartamento com móveis e colisão, acessíveis por todas
+  as portas de edifícios gerados. A transição é instantânea, sem carregamento de arquivo.
+- 18 pedestres próximos em rotas pelas calçadas e 18 veículos em rotas de avenida.
+- Ciclo completo de 24 horas em oito minutos, configurável. Janelas e letreiros
+  ganham presença à noite. Sombras direcionais simples das construções durante o dia.
+- Recorte local de fachada quando ela esconde o personagem, para preservar navegação.
+
+## Configuração
+
+Edite `config.toml`: resolução inicial, tamanho das células, VSync, seed, chuva,
+zoom, exposição e fonte. `start_hour` define a hora inicial; `day_seconds` define
+quantos segundos reais correspondem a um dia inteiro.
+
+```powershell
+python -m glyphworld --hour 23
+python -m glyphworld --autowalk
+python -m glyphworld --frames 900 --no-vsync --benchmark benchmark.json --capture captures/final.png
+```
+
+O benchmark principal inclui apresentação e sincronização da GPU. Registra FPS,
+tempo médio/p95, resolução, grade, driver e RSS. A memória de texturas é uma
+estimativa das alocações conhecidas, não o uso total de VRAM. O objetivo de 60 FPS
+continua dependendo de medição na aplicação e no computador usado.
+
+## Renderização
+
+1. Python gera uma vizinhança de 3×3 quarteirões, personagens e veículos. Uma
+   textura RGBA32F contém até 512 caixas; a cena atual usa 376 no exterior.
+   O cache procedural é limitado a 64 quarteirões. Não há um objeto Python por glifo.
+2. `scene.frag` intersecta os raios da câmera com essa geometria, aplica detalhes
+   procedurais por material e produz cor e metadados em buffers intermediários.
+3. `field.frag` seleciona o caractere usando luminosidade, gradiente, contraste,
+   material, textura e profundidade, com histerese temporal.
+4. `glyph.frag` desenha a máscara do atlas. **Fora dos traços dos caracteres,
+   o resultado é preto.** Nenhuma textura de cenário, sprite ou polígono é
+   composto diretamente na imagem final. Os mapas de diagnóstico também usam glifos.
+
+O atlas é compartilhado e gerado a partir de uma fonte monoespaçada local. A cena
+usa três draw calls por quadro; a complexidade de interseção aumenta com a geometria,
+mesmo mantendo o número de chamadas fixo. A grade padrão tem 256×103 = 26.368 células.
+
+## Testes e estado de validação
+
+```powershell
+python -m unittest discover -s tests -v
+python -m glyphworld --hidden --frames 120 --capture captures/smoke.png --benchmark benchmark-smoke.json
+```
+
+**20 testes de lógica passaram.** Os três shaders compilaram e executaram na GPU
+Intel UHD Graphics em um harness nativo, incluindo dia, noite, interior, animação,
+tempo congelado e mapas de diagnóstico. As imagens deste README são capturas reais.
+
+**Limitação do ambiente de desenvolvimento:** a instalação de ModernGL/GLFW/psutil
+permaneceu indisponível. Portanto a janela principal, os eventos de teclado e o
+benchmark integrado ainda precisam ser verificados com as dependências instaladas.
+Os números do harness **não são FPS da aplicação**. Veja [VALIDATION.md](docs/VALIDATION.md).
+
+No Windows, o harness opcional usa NumPy, Pillow e o OpenGL do sistema:
+
+```powershell
+python tools/render_probe_windows.py
+```
+
+Ele atualiza as três imagens e `docs/gpu-probe.json`. A aplicação principal continua
+multiplataforma: ModernGL/GLFW, sem importar esse harness específico do Windows.
+
+Linux está preparado, mas ainda não foi testado:
 
 ```sh
 python3 -m venv .venv
@@ -40,120 +142,23 @@ python3 -m venv .venv
 .venv/bin/python -m glyphworld
 ```
 
-É necessária uma sessão gráfica, driver com OpenGL 3.3+ e as bibliotecas de sistema
-usadas pelo GLFW. O renderer principal não utiliza APIs exclusivas do Windows.
+São necessários sessão gráfica, OpenGL 3.3+, bibliotecas de sistema do GLFW e uma
+fonte monoespaçada. Configure `render.font` se a descoberta automática falhar.
 
-## Controles
+## Limites atuais
 
-| Tecla | Ação |
-|---|---|
-| Espaço | Pausar/continuar personagem, câmera e atmosfera |
-| `[` / `]` | Mais/menos caracteres; recria buffers e limpa histórico |
-| R | Ligar/desligar chuva |
-| L | Alternar iluminação ambiental/local e sombra aproximada |
-| F1 | Mostrar/ocultar diagnóstico no título da janela |
-| F2 | Final → luminosidade → orientação → profundidade → material |
-| `+` / `-`, ou roda do mouse | Zoom entre 0,65× e 1,8× |
-| F12 | Salvar PNG da imagem atual em `captures/` |
-| Esc | Sair |
+Esta é uma base explorável de cidade, não uma simulação urbana completa. Carros e
+pedestres têm trajetórias demonstrativas e não colidem com o jogador. A parada dos
+carros antes de cruzamentos é uma aproximação por fase temporal, sem navegação de
+trânsito real. Os interiores variam entre dois layouts; não há diálogo, inventário,
+missões, persistência de alterações ou inteligência autônoma. O pulo é visual e
+físico no eixo vertical, com colisão lateral mantida, sem plataformas elevadas.
 
-Todos os mapas de diagnóstico também são mostrados por glifos. O diagnóstico fica
-no título da janela para não sobrepor pixels convencionais à cena.
+A geração ainda usa uma malha regular, com variação de altura, largura, material e
+tipo de interior. Prédios são compostos por caixas detalhadas proceduralmente.
+A vizinhança se renova ao cruzar quarteirões; objetos muito distantes podem aparecer
+ou desaparecer. O recorte de fachada é uma ajuda de câmera, não destruição do prédio.
 
-## O que existe na demonstração
-
-- Quatro camadas de arquitetura procedural com parallax, janelas, tanques e antenas.
-- Fachada próxima com tijolos, rachaduras, canos, trepadeiras e luz quente.
-- Passarela com corrimão, suportes diagonais e cabo pendente.
-- Solo úmido, reflexos estilizados, vegetação ao vento, neblina e três camadas de chuva.
-- Pequeno viajante original com capuz, casaco, pernas animadas e cachecol.
-- Câmera com suavização exponencial e configuração por seed.
-
-O movimento é demonstrativo: não há colisão, navegação, física de água, persistência
-nem comportamento autônomo. A composição é 2D em camadas, com profundidade simulada.
-
-## Como o campo de glifos funciona
-
-1. `scene.frag` calcula cor e metadados (material, profundidade e textura) em dois
-   buffers intermediários, com duas amostras por eixo de cada célula.
-2. `field.frag` calcula luminosidade e gradiente local. Densidade, orientação,
-   contraste, material, distância e textura determinam o símbolo. Vegetação,
-   metal e água têm preferências distintas. O histórico ping-pong aplica histerese
-   com referência de luminosidade acumulada para reduzir cintilação.
-3. `glyph.frag` amostra apenas o símbolo selecionado no atlas compartilhado,
-   colorindo sua máscara. Fora da máscara, o resultado é preto. Não há composição
-   da imagem intermediária atrás dos caracteres, sprites visíveis ou geometria
-   convencional na imagem final.
-
-São **três draw calls por quadro**, independentemente do número de glifos. O estado
-por célula mora em texturas da GPU, sem objetos Python individuais. O atlas é
-gerado uma vez. Na densidade padrão são 214 × 80 = **17.120 células**.
-
-O brilho escolhe entre símbolos de densidade diferente; as bordas usam `- | / \\`.
-A escolha não é apenas uma rampa de brilho. O conjunto ASCII foi escolhido para
-compatibilidade entre fontes e sistemas. Glifos Unicode adicionais ficam para uma
-iteração com verificação de cobertura da fonte.
-
-## Configuração e desempenho
-
-Edite `config.toml`: resolução inicial, célula, VSync, seed, chuva, luz, zoom,
-exposição, limiar temporal e fonte. Reduzir densidade aumenta o tamanho das células
-e diminui o trabalho dos dois passes intermediários.
-
-O título mostra FPS, tempo médio, número de células, RSS do processo e uma estimativa
-das texturas alocadas. A estimativa não inclui memória do driver, swapchain nem todas
-as alocações internas; não é uma medição de VRAM total. FPS de execução comum inclui
-apresentação/VSync e pode refletir fila da GPU. Para uma medição sincronizada:
-
-```powershell
-.\.venv\Scripts\python.exe -m glyphworld --frames 900 --no-vsync --benchmark benchmark.json --capture captures\final.png
-```
-
-O benchmark chama `ctx.finish()` após apresentação e registra média, p95, amostras,
-GPU, driver, resolução e grade. Usa até os últimos 600 quadros. Não há garantia de
-60 FPS; medir novamente no computador e configuração reais.
-
-## Testes
-
-```powershell
-.\.venv\Scripts\python.exe -m unittest discover -s tests -v
-.\.venv\Scripts\python.exe -m glyphworld --hidden --frames 120 --capture captures\smoke.png --benchmark benchmark-smoke.json
-```
-
-O primeiro comando testa configuração, cobertura da grade, atlas, seed, câmera,
-animação e pausa. O segundo é um teste integrado real e precisa de GPU e sessão
-gráfica, mesmo com janela oculta. Não deve ser tratado como teste puramente headless.
-
-## Estrutura
-
-```text
-glyphworld/
-  __main__.py       janela, loop, eventos, benchmark e captura
-  renderer.py       passes, texturas, redimensionamento e recursos
-  atlas.py          atlas compartilhado e descoberta de fonte
-  config.py         TOML validado e dimensionamento da grade
-  scene.py          paleta procedural reproduzível
-  character.py      movimento demonstrativo
-  camera.py         acompanhamento suave e zoom
-  lighting.py       estado e tempo da atmosfera
-  metrics.py        tempos e memória RSS
-  shaders/          cena, seleção temporal e composição por glifos
-tests/              testes sem interface gráfica
-tools/              harness Windows opcional de validação dos shaders
-docs/               captura real e relatório de validação
-```
-
-## Limitações e próximos passos
-
-Prioridade seguinte: validar instalação e interação na janela principal, registrar
-benchmark de 900 quadros e ajustar a direção artística com o vídeo de referência.
-O vídeo e a conversa compartilhada não puderam ser inspecionados neste ambiente;
-a implementação segue a especificação textual fornecida.
-
-Depois: reprojeção temporal por movimento (hoje o histórico é por célula de tela),
-atlas com cobertura calibrada, silhueta mais expressiva, composição de cenários em
-segmentos menos repetitivos, colisão simples e testes Linux. Só então adicionar
-memória e tomada de decisões do personagem.
-
-Documentação técnica consultada: [ModernGL Context](https://moderngl.readthedocs.io/en/stable/reference/context.html)
-e [GLFW Window guide](https://www.glfw.org/docs/latest/window_guide.html).
+Próximos passos: validar a janela completa, enriquecer os layouts e fachadas,
+introduzir rotas de trânsito persistentes, colisões entre agentes, interiores
+maiores e interação com a cidade. A IA de personalidade permanece fora desta etapa.

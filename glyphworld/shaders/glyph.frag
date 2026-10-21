@@ -24,7 +24,7 @@ void main() {
     if(debug_view==2) col=.5+.5*cos(data.w+vec3(0,2.094,4.189));
     if(debug_view==3) col=vec3(1.-texture(info,center).g);
     if(debug_view==4) col=.5+.5*cos(data.z*31.+vec3(0,2.,4.));
-    col=pow(clamp(col*exposure,0.,1.),vec3(.62));
+    col=pow(clamp(col*exposure,0.,1.),vec3(.70));
     // All color is gated by the glyph mask. No scene/background compositing.
-    frag=vec4(col*sqrt(ink),1.);
+    frag=vec4(col*pow(ink,.32),1.);
 }

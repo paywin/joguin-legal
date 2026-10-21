@@ -18,10 +18,10 @@ void main() {
     vec3 meta=texture(info,uv).rgb;
     int material=int(round(meta.x*8.));
     // Brightness, material microtexture and depth influence density together.
-    float density=clamp(pow(max(L,0.),.38)*1.45+(meta.z-.5)*.22*(1.-meta.y),0.,.999);
+    float density=clamp(sqrt(max(L,0.))*1.10+(meta.z-.5)*.10*(1.-meta.y),0.,.999);
     const int ramp[10]=int[10](0,2,3,7,9,8,10,11,12,12);
     int glyph=ramp[int(density*10.)];
-    if(contrast>.055) {
+    if(contrast>.22) {
         if(abs(dx)>abs(dy)*2.2) glyph=14; // vertical edge
         else if(abs(dy)>abs(dx)*2.2) glyph=13;
         else glyph=dx*dy>0.?16:15; // tangent, not gradient
@@ -33,7 +33,7 @@ void main() {
     // Do not retain stale symbols across material or strong edge transitions.
     vec4 old=texture(previous,uv);
     float reference_luminance=L;
-    if(history_valid && abs(old.y-L)<threshold && abs(old.z-meta.x)<.02 && contrast<.055) {
+    if(history_valid && abs(old.y-L)<threshold && abs(old.z-meta.x)<.02 && contrast<.22) {
         glyph=int(round(old.x));
         reference_luminance=old.y; // Accumulate slow changes instead of locking a glyph forever.
     }

@@ -5,6 +5,9 @@ import numpy as np
 from PIL import Image
 sys.path.insert(0,str(root))
 from glyphworld.atlas import build_atlas, GLYPHS
+from glyphworld.scene import City, city_geometry, MAX_BOXES
+from glyphworld.character import Character
+from glyphworld.lighting import Atmosphere
 
 gen_tex=fn('glGenTextures',None,I,c.POINTER(U)); bind_tex=fn('glBindTexture',None,U,U)
 tex_image=fn('glTexImage2D',None,U,I,I,I,I,I,U,U,P)
@@ -50,19 +53,26 @@ def uniforms(name,**values):
 def bind(unit,t): active(0x84C0+unit); bind_tex(0x0DE1,t)
 
 W,H=1280,720
-GW,GH=214,80
+GW,GH=256,103
 scene=texture(GW*2,GH*2); info=texture(GW*2,GH*2); sf=fbo([scene,info])
 fields=[texture(GW,GH),texture(GW,GH)]; ff=[fbo([t]) for t in fields]
 out=texture(W,H); of=fbo([out])
 pixels,_=build_atlas(); atlas=texture(pixels.shape[1],pixels.shape[0],pixels,True)
 tex_param(0x0DE1,0x2801,0x2601); tex_param(0x0DE1,0x2800,0x2601)
+geometry=texture(3,MAX_BOXES)
+city=City(42)
+character=Character()
 for f in ff:
     bind_fbo(0x8D40,f); gl.glClear(0x4000)
 
-def render(t,index,history=True,rain=True,light=True,debug=0):
+def render(t,index,history=True,rain=False,light=True,debug=0,hour=9.):
+    boxes,count=city_geometry(city,character,t)
+    bind(4,geometry)
+    tex_image(0x0DE1,0,0x8814,3,MAX_BOXES,0,0x1908,0x1406,boxes.ctypes.data)
     bind_fbo(0x8D40,sf); viewport(0,0,GW*2,GH*2)
-    uniforms('scene',resolution=(W,H),time=t,camera_x=t*.075-.18,zoom=1.,character_x=t*.075,
-             phase=t*6.5,bob=abs(np.sin(t*6.5))*.003,seed=42.,rain=rain,lighting=light,accent=(.88,.52,.24))
+    uniforms('scene',resolution=(W,H),time=t,camera_position=(character.x,character.z),zoom=1.,
+             player_position=(character.x,character.z),geometry=4,box_count=count,
+             daylight=Atmosphere(hour=hour).daylight,interior=city.interior is not None,rain=rain,lighting=light)
     draw(4,0,3)
     bind_fbo(0x8D40,ff[index]); viewport(0,0,GW,GH)
     bind(0,scene); bind(1,info); bind(2,fields[1-index])
@@ -70,7 +80,7 @@ def render(t,index,history=True,rain=True,light=True,debug=0):
     draw(4,0,3)
     bind_fbo(0x8D40,of); viewport(0,0,W,H)
     bind(0,atlas); bind(1,fields[index]); bind(2,scene); bind(3,info)
-    uniforms('glyph',atlas=0,field=1,scene=2,info=3,grid=(GW,GH),resolution=(W,H),glyph_count=float(len(GLYPHS)),exposure=1.7,debug_view=debug)
+    uniforms('glyph',atlas=0,field=1,scene=2,info=3,grid=(GW,GH),resolution=(W,H),glyph_count=float(len(GLYPHS)),exposure=1.35,debug_view=debug)
     draw(4,0,3)
     finish()
     assert gl.glGetError()==0
@@ -107,12 +117,21 @@ assert np.all((field_data[:,:,0]>=0)&(field_data[:,:,0]<len(GLYPHS)))
 for view in range(1,5): render(1.5,view%2,False,debug=view)
 render(1.5,0,False,rain=False,light=False)
 capture(capture_dir/'probe-dry.png')
+render(4.,1,False,hour=23.)
+capture(outdir/'preview-night.png')
+door=city.nearby(character.x,character.z,0)[0]
+character.x,character.z=door.door
+assert city.interact(character)
+render(4.,0,False,hour=23.)
+capture(outdir/'preview-interior.png')
+assert city.interact(character)
 report={'renderer':gl.glGetString(0x1F01).decode(),'opengl':gl.glGetString(0x1F02).decode(),
         'harness':'ctypes WGL, hidden window + offscreen FBO; NOT ModernGL/GLFW application',
         'resolution':[W,H],'grid':[GW,GH],'sample_frames':80,'warmup_frames':10,
         'mean_ms':float(np.mean(samples[10:])*1000),'p95_ms':float(np.percentile(samples[10:],95)*1000),
         'fps':float(1/np.mean(samples[10:])), 'animated_pixel_fraction':float(np.mean(first!=second)),
         'diagnostic_views_rendered':4,'rain_and_light_off_rendered':True,
+        'night_and_interior_rendered':True,'city_boxes':city_geometry(city,character,0)[1],
         'paused_frames_identical':True,'field_indices_finite_and_in_range':True}
 (outdir/'gpu-probe.json').write_text(json.dumps(report,indent=2))
 gl.wglMakeCurrent(None,None); gl.wglDeleteContext(rc); u.ReleaseDC(h,dc); u.DestroyWindow(h)

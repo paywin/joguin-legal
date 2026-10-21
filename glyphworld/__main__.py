@@ -7,17 +7,21 @@ from .config import load_config, ROOT
 
 
 def main():
-    parser = argparse.ArgumentParser(description="GlyphWorld 0.2 — The Forgotten City")
+    parser = argparse.ArgumentParser(description="GlyphWorld 0.3 — Tokyo / Hikari District")
     parser.add_argument("--config", type=Path, default=ROOT / "config.toml")
     parser.add_argument("--frames", type=int, default=0, help="Exit after N frames; 0 runs until closed")
     parser.add_argument("--benchmark", type=Path, help="Write measured frame times and hardware metadata")
     parser.add_argument("--capture", type=Path, help="Save last frame before swap")
     parser.add_argument("--hidden", action="store_true", help="Hidden GLFW window for automated GPU smoke test")
     parser.add_argument("--no-vsync", action="store_true")
+    parser.add_argument("--hour", type=float, help="Override initial hour, 0 <= hour < 24")
+    parser.add_argument("--autowalk", action="store_true", help="Start in demonstration walk mode")
     args = parser.parse_args()
     if args.frames < 0 or (args.hidden and args.frames == 0):
         parser.error("--frames must be nonnegative; --hidden requires a finite --frames")
     config = load_config(args.config)
+    if args.hour is not None and not 0 <= args.hour < 24:
+        parser.error("--hour must be in [0, 24)")
     try:
         import glfw
         import moderngl
@@ -28,6 +32,7 @@ def main():
     from .camera import Camera
     from .character import Character
     from .lighting import Atmosphere
+    from .scene import City
     glfw.set_error_callback(lambda code, message: print(f"GLFW {code}: {message}", file=sys.stderr))
     if not glfw.init():
         raise RuntimeError("GLFW initialization failed; a desktop session and OpenGL 3.3 are required")
@@ -37,7 +42,7 @@ def main():
         glfw.window_hint(glfw.CONTEXT_VERSION_MINOR, 3)
         glfw.window_hint(glfw.OPENGL_PROFILE, glfw.OPENGL_CORE_PROFILE)
         glfw.window_hint(glfw.VISIBLE, not args.hidden)
-        window = glfw.create_window(config.width, config.height, "GlyphWorld | The Forgotten City", None, None)
+        window = glfw.create_window(config.width, config.height, "GlyphWorld | Tokyo / Hikari", None, None)
         if not window:
             raise RuntimeError("Could not open an OpenGL 3.3 window. Check the graphics driver.")
         glfw.make_context_current(window)
@@ -45,18 +50,37 @@ def main():
         ctx = moderngl.create_context(require=330)
         renderer = Renderer(ctx, config)
         camera = Camera(zoom=config.zoom)
-        character = Character()
-        atmosphere = Atmosphere(config.rain, config.lighting)
+        character = Character(automatic=args.autowalk)
+        city = City(config.seed)
+        atmosphere = Atmosphere(config.rain, config.lighting, hour=config.start_hour if args.hour is None else args.hour,
+                                day_seconds=config.day_seconds)
         metrics = Metrics()
-        state = {"paused": False, "metrics": True, "capture": False}
+        state = {"paused": False, "metrics": True, "capture": False, "jump": False}
 
         def on_key(win, key, scancode, action, mods):
             if action != glfw.PRESS:
                 return
             if key == glfw.KEY_ESCAPE:
                 glfw.set_window_should_close(win, True)
-            elif key == glfw.KEY_SPACE:
+            elif key == glfw.KEY_P:
                 state["paused"] = not state["paused"]
+            elif key == glfw.KEY_SPACE and not state["paused"]:
+                state["jump"] = True
+            elif key == glfw.KEY_E and not state["paused"]:
+                if city.interact(character):
+                    camera.snap(character)
+                    renderer.history_valid = False
+            elif key == glfw.KEY_TAB:
+                character.automatic = not character.automatic
+            elif key == glfw.KEY_N:
+                atmosphere.hour = (atmosphere.hour + 6) % 24
+                renderer.history_valid = False
+            elif key == glfw.KEY_T:
+                atmosphere.cycle = not atmosphere.cycle
+            elif key == glfw.KEY_PAGE_UP:
+                renderer.exposure = min(3., renderer.exposure + .15)
+            elif key == glfw.KEY_PAGE_DOWN:
+                renderer.exposure = max(.65, renderer.exposure - .15)
             elif key == glfw.KEY_R:
                 atmosphere.rain = not atmosphere.rain
                 renderer.history_valid = False
@@ -81,7 +105,8 @@ def main():
         glfw.set_key_callback(window, on_key)
         glfw.set_scroll_callback(window, lambda win, x, y: camera.zoom_by(1.1**y))
         print("OpenGL:", ctx.info.get("GL_RENDERER"), ctx.info.get("GL_VERSION"))
-        print("Space pause | [ ] density | R rain | L light | F1 metrics | F2 maps | +/- zoom | F12 capture")
+        print("WASD move | Space jump | E enter/exit | P pause | Tab auto | N +6h | T clock | PgUp/PgDn brightness")
+        print("[ ] density | R rain | L light | F1 metrics | F2 maps | +/- zoom | F12 capture")
         previous = time.perf_counter()
         title_time, frames = 0.0, 0
         while not glfw.window_should_close(window):
@@ -96,10 +121,13 @@ def main():
             if size != renderer.size:
                 renderer.resize(*size)
             if not state["paused"]:
-                character.update(dt)
-                camera.update(character.x, dt)
+                direction = (float(glfw.get_key(window, glfw.KEY_D)==glfw.PRESS)-float(glfw.get_key(window, glfw.KEY_A)==glfw.PRESS),
+                             float(glfw.get_key(window, glfw.KEY_W)==glfw.PRESS)-float(glfw.get_key(window, glfw.KEY_S)==glfw.PRESS))
+                character.update(dt, city, direction, state["jump"])
+                state["jump"] = False
+                camera.update((character.x, character.z), dt)
                 atmosphere.update(dt)
-            renderer.render(camera, character, atmosphere)
+            renderer.render(camera, character, atmosphere, city)
             frames += 1
             if state["capture"]:
                 renderer.capture(ROOT / "captures" / f"glyphworld-{time.time_ns()}.png")
@@ -112,7 +140,9 @@ def main():
             metrics.add(time.perf_counter()-frame_start)
             if frame_start-title_time>.5:
                 s = metrics.summary()
-                title = "GlyphWorld 0.2 | The Forgotten City"
+                near = city.nearest_door(character.x, character.z)
+                prompt = " | E: ENTER" if near else " | E: EXIT near cyan mat" if city.interior else ""
+                title = f"GlyphWorld 0.3 | {city.location} | {atmosphere.clock} | {'AUTO' if character.automatic else 'WASD + SPACE'}{prompt}"
                 if state["metrics"]:
                     title += (f" | {s['fps']:.1f} FPS / {s['frame_ms']:.2f} ms"
                               f" | {renderer.grid[0]*renderer.grid[1]:,} glyphs"

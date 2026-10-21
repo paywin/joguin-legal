@@ -3,7 +3,7 @@ from pathlib import Path
 import moderngl
 from .atlas import build_atlas, GLYPHS
 from .config import grid_size
-from .scene import world_palette
+from .scene import city_geometry, MAX_BOXES
 
 SHADERS = Path(__file__).with_name("shaders")
 
@@ -25,6 +25,9 @@ class Renderer:
         self.atlas = ctx.texture((pixels.shape[1], pixels.shape[0]), 1, pixels.tobytes())
         self.atlas.filter = (moderngl.LINEAR, moderngl.LINEAR)
         self.atlas.repeat_x = self.atlas.repeat_y = False
+        self.geometry = ctx.texture((3, MAX_BOXES), 4, dtype="f4")
+        self.geometry.filter = (moderngl.NEAREST, moderngl.NEAREST)
+        self.exposure = config.exposure
         self.resize(config.width, config.height)
 
     def uniforms(self, name, **values):
@@ -57,22 +60,25 @@ class Renderer:
             fbo.clear()
         self.index, self.history_valid = 0, False
         self.gpu_bytes = (scene_size[0]*scene_size[1]*16 +
-                          self.grid[0]*self.grid[1]*16 + self.atlas.size[0]*self.atlas.size[1])
+                          self.grid[0]*self.grid[1]*16 + self.atlas.size[0]*self.atlas.size[1] + MAX_BOXES*48)
 
     def density(self, direction):
-        presets = [(4, 6), (6, 9), (8, 12), (10, 15), (12, 18)]
+        presets = [(4, 6), (5, 7), (6, 9), (8, 12), (10, 15)]
         index = min(range(len(presets)), key=lambda i: abs(presets[i][0]-self.cell[0]))
         self.cell = presets[min(len(presets)-1, max(0, index+direction))]
         self.resize(*self.size)
 
-    def render(self, camera, character, atmosphere):
+    def render(self, camera, character, atmosphere, city):
+        boxes, count = city_geometry(city, character, atmosphere.time)
+        self.geometry.write(boxes.tobytes())
+        self.geometry.use(4)
         self.scene_fbo.use()
         self.ctx.viewport = (0, 0, *self.scene.size)
         self.uniforms("scene", resolution=self.size, time=atmosphere.time,
-                      camera_x=camera.x, zoom=camera.zoom, character_x=character.x,
-                      phase=character.phase, bob=character.bob, seed=float(self.config.seed),
-                      rain=atmosphere.rain, lighting=atmosphere.lighting,
-                      accent=world_palette_cached(self.config.seed))
+                      geometry=4, box_count=count, camera_position=(camera.x,camera.z),
+                      player_position=(character.x,character.z), zoom=camera.zoom,
+                      daylight=atmosphere.daylight, interior=city.interior is not None,
+                      rain=atmosphere.rain, lighting=atmosphere.lighting)
         self.vaos["scene"].render(vertices=3)
         self.field_fbos[self.index].use()
         self.ctx.viewport = (0, 0, *self.grid)
@@ -90,7 +96,7 @@ class Renderer:
         self.info.use(3)
         self.uniforms("glyph", atlas=0, field=1, scene=2, info=3,
                       grid=self.grid, resolution=self.size, glyph_count=float(len(GLYPHS)),
-                      exposure=self.config.exposure, debug_view=self.debug)
+                      exposure=self.exposure, debug_view=self.debug)
         self.vaos["glyph"].render(vertices=3)
         self.index = 1-self.index
         self.history_valid = True
@@ -106,11 +112,10 @@ class Renderer:
         for item in reversed(self.targets):
             item.release()
         self.atlas.release()
+        self.geometry.release()
         for vao in self.vaos.values():
             vao.release()
         for program in self.programs.values():
             program.release()
 
 
-from functools import lru_cache
-world_palette_cached = lru_cache(maxsize=1)(world_palette)

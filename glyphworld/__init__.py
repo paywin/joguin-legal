@@ -1,2 +1,2 @@
-"""GlyphWorld: a GPU dynamic glyph field, version 0.2."""
-__version__ = "0.2.0"
+"""GlyphWorld: an explorable city rendered exclusively through dynamic glyphs."""
+__version__ = "0.3.0"

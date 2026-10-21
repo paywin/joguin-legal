@@ -1,18 +1,20 @@
 [display]
 width = 1280
 height = 720
-cell_width = 6
-cell_height = 9
+cell_width = 5
+cell_height = 7
 vsync = true
 
 [world]
 seed = 42
-rain = true
+rain = false
 lighting = true
 zoom = 1.0
+start_hour = 9.0
+day_seconds = 480.0
 
 [render]
-exposure = 1.7
+exposure = 1.35
 temporal_threshold = 0.045
 # Optional path to a monospace .ttf; empty uses system font discovery.
 font = ""

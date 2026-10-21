@@ -9,18 +9,22 @@ ROOT = Path(__file__).resolve().parent.parent
 class Config:
     width: int = 1280
     height: int = 720
-    cell_width: int = 6
-    cell_height: int = 9
+    cell_width: int = 5
+    cell_height: int = 7
     vsync: bool = True
     seed: int = 42
-    rain: bool = True
+    rain: bool = False
     lighting: bool = True
     zoom: float = 1.0
-    exposure: float = 1.7
+    exposure: float = 1.35
+    start_hour: float = 9.0
+    day_seconds: float = 480.0
     temporal_threshold: float = 0.045
     font: str = ""
 
     def __post_init__(self):
+        if not 0 <= self.start_hour < 24 or not 30 <= self.day_seconds <= 86400:
+            raise ValueError("Invalid day/night cycle configuration")
         for name in ("vsync", "rain", "lighting"):
             if not isinstance(getattr(self, name), bool):
                 raise ValueError(f"{name} must be true or false")
@@ -44,7 +48,7 @@ def load_config(path=ROOT / "config.toml"):
     with Path(path).open("rb") as handle:
         data = tomllib.load(handle)
     allowed = {"display": {"width", "height", "cell_width", "cell_height", "vsync"},
-               "world": {"seed", "rain", "lighting", "zoom"},
+               "world": {"seed", "rain", "lighting", "zoom", "start_hour", "day_seconds"},
                "render": {"exposure", "temporal_threshold", "font"}}
     values = {}
     for section, entries in data.items():

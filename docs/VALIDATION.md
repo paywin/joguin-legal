@@ -1,67 +1,63 @@
-# Validação — 21 de outubro de 2026
+# Validação do GlyphWorld 0.3 — 21/10/2026
 
-## Resultados efetivamente obtidos
+## Executado
 
-- Python 3.12.14 no Windows.
-- **10 testes unitários aprovados**, usando `unittest`, NumPy e Pillow.
-- Compilação sintática dos módulos Python via `compileall` aprovada.
-- **3 shaders compilados e vinculados pelo driver Intel UHD Graphics**,
-  OpenGL 4.6.0, build 32.0.101.5972.
-- Os três passes foram executados em buffers reais da GPU, em 1280 × 720,
-  com uma grade de 214 × 80 células.
-- Captura real em `preview.png`, produzida com o atlas gerado pela implementação.
-- Comparação de quadros confirma animação; comparação com tempo congelado confirma
-  estabilidade. Índices do campo foram lidos de volta e verificados quanto a
-  valores finitos e intervalo do atlas.
-- Quatro mapas de diagnóstico e a combinação chuva/luz desligadas renderizaram
-  sem erros OpenGL no harness.
+- Python 3.12.14 no Windows; **20 testes unitários aprovados**.
+- Compilação sintática dos módulos Python aprovada.
+- Movimento manual em dois eixos, normalização diagonal, pulo/aterrissagem e
+  bloqueio de pulo duplo verificados na lógica.
+- Colisão com paredes, deslocamentos longos sem atravessar edifícios, ruas entre
+  coordenadas positivas/negativas e becos internos verificados.
+- Entrada em edifício, colisão interior, restrição de saída à porta e retorno à
+  mesma entrada verificados.
+- Geração determinística por seed, cache limitado, orçamento e validade das
+  caixas de geometria verificados.
+- Ciclo de 24 horas, volta à meia-noite, luminosidade de dia/noite e relógio
+  congelado verificados.
+- Três shaders GLSL compilados e vinculados no driver **Intel UHD Graphics**,
+  OpenGL **4.6.0 — Build 32.0.101.5972**.
+- Renderização real na GPU: exterior diurno, exterior noturno, interior, mapas
+  de diagnóstico e tempo congelado. Índices do atlas lidos de volta e validados.
+- As capturas `preview.png`, `preview-night.png` e `preview-interior.png` vêm
+  desses shaders. Nenhuma imagem foi gerada por IA para representar execução.
 
-Resultados numéricos do ensaio estão em `gpu-probe.json`. O teste mede apenas
-os shaders através de um pequeno harness ctypes/WGL, com janela **oculta**,
-framebuffer fora da tela, sincronização `glFinish`, sem apresentação nem VSync.
-São 90 quadros, descartando os primeiros 10. **Não é o FPS da aplicação**,
-não valida GLFW/ModernGL, não constitui teste de longa duração e não demonstra
-que a meta de 60 FPS na janela foi atingida.
+## Escopo da medição de GPU
 
-## Bloqueios do ambiente
+`gpu-probe.json` contém os resultados medidos em 1280×720 e 256×103 células.
+São 90 quadros, descartando dez de aquecimento. Cada amostra inclui criação dos
+descritores da cena, upload, três passes e `glFinish` em um harness ctypes/WGL com
+janela oculta e framebuffer fora da tela. Não há apresentação/VSync nem loop GLFW.
+Assim, **não se deve usar esse valor como FPS da aplicação ou garantia de 60 FPS**.
 
-A instalação de ModernGL, GLFW e psutil falhou porque o ambiente não conseguiu
-resolver `pypi.org`. A tentativa de iniciar a aplicação principal terminou com
-a mensagem explícita de dependências ausentes. Portanto, a janela principal,
-eventos de teclado, redimensionamento, uso de memória do processo e apresentação
-continuam **pendentes de validação integrada**. Não foram inventados resultados
-para esses itens. O acesso ao vídeo de referência e ao link de conversa também
-não permitiu sua inspeção; a referência usada foi a especificação textual.
+## Pendente e motivo
 
-## Reproduzir a validação
+A tentativa anterior de instalar ModernGL/GLFW/psutil falhou por resolução de
+rede. Nesta etapa, a inspeção confirmou que as dependências seguem ausentes;
+a tentativa de obter o pacote oficial pelo navegador não forneceu um arquivo
+instalável ao ambiente. A aplicação principal não pôde ser iniciada aqui.
 
-Na raiz do projeto, com dependências instaladas:
+Portanto continuam pendentes: eventos reais de WASD/E/Espaço, janela visível,
+redimensionamento/minimização, controle de exposição em execução, consumo RSS
+da aplicação e teste prolongado de navegação. A implementação desses recursos
+existe, mas os testes lógicos e o harness GPU não substituem essa validação.
+
+## Reproduzir
 
 ```powershell
 python -m unittest discover -s tests -v
-python -m compileall -q glyphworld tests
+python -m compileall -q glyphworld tests tools
+python tools/render_probe_windows.py
 python -m glyphworld --hidden --frames 120 --capture captures/smoke.png --benchmark benchmark-smoke.json
 python -m glyphworld --frames 900 --no-vsync --benchmark benchmark.json
 ```
 
-O harness opcional de GPU usa somente Python, NumPy, Pillow e o OpenGL do Windows:
+No teste manual, verificar:
 
-```powershell
-python tools/render_probe_windows.py
-```
+1. WASD nas quatro direções, diagonal e parede; Espaço pula e P pausa.
+2. Porta ciano: E entra; retorno ao tapete: E sai; posição exterior preservada.
+3. N alterna horários; T congela apenas o relógio; R e L alteram atmosfera.
+4. Personagem continua identificável atrás de fachadas por meio do recorte local.
+5. Trocar densidade, zoom e tamanho da janela, capturar com F12 e observar memória.
+6. Caminhar por pelo menos 15 minutos, incluindo quarteirões negativos.
 
-Ele atualiza a captura e o JSON em `docs/`; capturas adicionais vão para `captures/`.
-Não é um backend do jogo e não introduz dependência Windows no renderer principal.
-
-## Checklist manual pendente
-
-- Abrir janela visível com `start_windows.bat` em uma instalação nova.
-- Pausar e verificar que câmera, personagem, chuva e vegetação param.
-- Testar cada controle documentado; confirmar que F12 cria PNG válido.
-- Redimensionar, minimizar/restaurar e trocar densidade repetidamente.
-- Comparar RSS antes/depois das trocas para detectar crescimento continuado.
-- Executar por pelo menos 15 minutos e examinar repetição procedural e cintilação.
-- Validar Linux separadamente.
-
-O protótipo não é declarado integralmente concluído enquanto a validação da
-aplicação principal permanecer pendente.
+O relatório da versão anterior foi preservado em `VALIDATION-0.2.md`.

@@ -2,11 +2,11 @@
 import os
 from pathlib import Path
 import numpy as np
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
 # Stable indices shared with field.frag. ASCII guarantees broad font coverage.
 GLYPHS = ".,:;!il+ox%#@-|/\\vY*()[]=~^"
-TILE = (20, 28)
+TILE = (16, 26)
 
 
 def resolve_font(custom=""):
@@ -34,6 +34,8 @@ def build_atlas(custom=""):
         draw.text((index * width + (width - glyph_width) // 2 - box[0], -1),
                   glyph, fill=255, font=font)
     # OpenGL origin is bottom-left.
+    # Increase stroke coverage at 4-6 px cells, without drawing a solid background.
+    atlas = atlas.filter(ImageFilter.MaxFilter(3))
     pixels = np.asarray(atlas.transpose(Image.Transpose.FLIP_TOP_BOTTOM)).copy()
     coverage = pixels.reshape(height, len(GLYPHS), width).mean(axis=(0, 2)) / 255
     if np.any(coverage <= 0):
